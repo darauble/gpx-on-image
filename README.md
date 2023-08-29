@@ -8,7 +8,7 @@ libraries and GPX workflow. Also, I don't have the experience with GUI, especial
 tinkering). However, I still had to add semi-correct coordinates mapping, drawing on the image itself and some more GUI
 functionality:
 
-![GPX Track on Image Drawer](screenshot/2023-08-29 09-57-21-gpx-gui-darauble.jpg?raw=true "GPX Track on Image Drawer")
+![GPX Track on Image Drawer](screenshots/2023-08-29%2009-57-21-gpx-gui-darauble.jpg?raw=true)
 
 There are some possibilities to make this utility better.
 
