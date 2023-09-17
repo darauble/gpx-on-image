@@ -15,7 +15,8 @@ There are some possibilities to make this utility better.
 ## Coordinate Mapping
 
 Coordinate mapping to the image should take into account the latitute and its effect on proportional distance beteen
-longitudinal points. Currently this is not implemented, so GPX tracks nearing equator or poles would get distorted.
+longitudinal points. Currently this is implemented in a very approximate manner, perfect square by coordinates going up
+on latitudes does is not exactly squared, but close.
 
 ## Other Statistics
 

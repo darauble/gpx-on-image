@@ -52,8 +52,6 @@ def draw_gpx_on_image(image_path, gpx_path, output_path, margin_percent):
 
     for track in gpx.tracks:
         for segment in track.segments:
-            points = []
-            
             # Pre-calculate min/max coordinates (shouldn't exceed 360, hence 500 maximum)
             point_max_lon = -500
             point_min_lon = 500
@@ -73,9 +71,37 @@ def draw_gpx_on_image(image_path, gpx_path, output_path, margin_percent):
                 if point.latitude < point_min_lat:
                     point_min_lat = point.latitude
             
+            lat_avg = (point_max_lat + point_min_lat) / 2
+            lon_coeff = math.cos(math.radians(lat_avg))
+
+            adjusted_points = []
+
             for point in segment.points:
-                x = math.floor(normalize(point.longitude, point_min_lon, point_max_lon) * limit_width) + offset_width
-                y = math.floor((1 - normalize(point.latitude, point_min_lat, point_max_lat)) * limit_height) + offset_height
+                new_point = {
+                    "latitude": point.latitude,
+                    "longitude": point.longitude * lon_coeff
+                }
+                adjusted_points.append(new_point)
+            
+            point_max_lon = point_max_lon * lon_coeff
+            point_min_lon = point_min_lon * lon_coeff
+
+            lat_diff = point_max_lat - point_min_lat
+            lon_diff = point_max_lon - point_min_lon
+
+            if lat_diff > lon_diff:
+                point_min_lon = point_min_lon - (lat_diff / 4)
+                point_max_lon = point_max_lon + (lat_diff / 4)
+            elif lon_diff > lat_diff:
+                point_min_lat = point_min_lat - (lon_diff / 4)
+                point_max_lat = point_max_lat + (lon_diff / 4)
+            
+            
+            points = []
+            
+            for point in adjusted_points:
+                x = math.floor(normalize(point["longitude"], point_min_lon, point_max_lon) * limit_width) + offset_width
+                y = math.floor((1 - normalize(point["latitude"], point_min_lat, point_max_lat)) * limit_height) + offset_height
                 
                 points.append((x, y))
 
