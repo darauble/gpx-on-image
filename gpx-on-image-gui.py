@@ -7,10 +7,70 @@ import tkinter as tk
 from tkinter import filedialog
 from tkinter import ttk
 
-# Normalize the value into range 0..1
-def normalize(value, min_value, max_value):
-    normalized_value = (value - min_value) / (max_value - min_value)
-    return normalized_value
+def haversine(lat1, lon1, lat2, lon2):
+    # Radius of the Earth in kilometers
+    earth_radius = 6371.0
+
+    # Convert latitude and longitude from degrees to radians
+    lat1 = math.radians(lat1)
+    lon1 = math.radians(lon1)
+    lat2 = math.radians(lat2)
+    lon2 = math.radians(lon2)
+
+    # Haversine formula
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = math.sin(dlat / 2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    # Calculate the distance in kilometers
+    distance = earth_radius * c
+
+    return distance
+
+def calculate_bearing_radians(lat1, lon1, lat2, lon2):
+    # Convert latitude and longitude from degrees to radians
+    lat1 = math.radians(lat1)
+    lon1 = math.radians(lon1)
+    lat2 = math.radians(lat2)
+    lon2 = math.radians(lon2)
+
+    # Calculate the difference in longitudes
+    dlon = lon2 - lon1
+
+    # Calculate the bearing using the spherical trigonometry formula
+    y = math.sin(dlon) * math.cos(lat2)
+    x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dlon)
+    bearing = math.atan2(y, x)
+
+    return bearing
+
+def calculate_bearing(lat1, lon1, lat2, lon2):
+    # Convert the bearing from radians to degrees
+    bearing = math.degrees(calculate_bearing_radians(lat1, lon1, lat2, lon2))
+
+    # Normalize the bearing to the range [0, 360]
+    bearing = (bearing + 360) % 360
+
+    return bearing
+
+def calculate_true_angle(angle):
+    if angle >= 0 and angle <= 90:
+        return angle
+    elif angle > 90 and angle <= 180:
+        return angle - 90
+    elif angle > 180 and angle <= 270:
+        return angle - 180
+    elif angle > 270 and angle <= 360:
+        return angle - 270
+
+def calculate_rectangle(hypotenuse, angle):
+    theta_radians = math.radians(angle)
+
+    a = hypotenuse * math.cos(theta_radians)
+    b = hypotenuse * math.sin(theta_radians)
+
+    return (b, a)
 
 def draw_gpx_on_image(image_path, gpx_path, output_path, margin_percent):
     # Open the image
@@ -29,9 +89,8 @@ def draw_gpx_on_image(image_path, gpx_path, output_path, margin_percent):
         limit_height = limit_width
     
     # Center the track in the image
-    offset_width = math.floor((img_width - limit_width) / 2)
-    offset_height = math.floor((img_height - limit_height) / 2)
-    
+    width_center = (img_width / 2)
+    height_center = (img_height / 2)
 
     # Create a new image with a white background
     result_img = Image.new("RGB", (img_width, img_height), "white")
@@ -41,6 +100,8 @@ def draw_gpx_on_image(image_path, gpx_path, output_path, margin_percent):
 
     # Calculate the line width, 1% of longest image side
     line_width = max(img_width, img_height) // 100
+
+    half_pi = math.pi / 2
 
     # Load and parse the GPX file
     gpx_file = open(gpx_path, "r")
@@ -52,59 +113,56 @@ def draw_gpx_on_image(image_path, gpx_path, output_path, margin_percent):
 
     for track in gpx.tracks:
         for segment in track.segments:
-            # Pre-calculate min/max coordinates (shouldn't exceed 360, hence 500 maximum)
-            point_max_lon = -500
-            point_min_lon = 500
-            point_max_lat = -500
-            point_min_lat = 500
-            
+            max_lat = -500
+            min_lat = 500
+            max_lon = -500
+            min_lon = 500
+
             for point in segment.points:
-                if point.longitude > point_max_lon:
-                    point_max_lon = point.longitude
-                    
-                if point.longitude < point_min_lon:
-                    point_min_lon = point.longitude
+                if point.latitude > max_lat:
+                    max_lat = point.latitude
+                elif point.latitude < min_lat:
+                    min_lat = point.latitude
                 
-                if point.latitude > point_max_lat:
-                    point_max_lat = point.latitude
-                    
-                if point.latitude < point_min_lat:
-                    point_min_lat = point.latitude
+                if point.longitude > max_lon:
+                    max_lon = point.longitude
+                elif point.longitude < min_lon:
+                    min_lon = point.longitude
             
-            lat_avg = (point_max_lat + point_min_lat) / 2
-            lon_coeff = math.cos(math.radians(lat_avg))
-
-            adjusted_points = []
-
-            for point in segment.points:
-                new_point = {
-                    "latitude": point.latitude,
-                    "longitude": point.longitude * lon_coeff
-                }
-                adjusted_points.append(new_point)
+            hypotenuse = haversine(max_lat, max_lon, min_lat, min_lon)
+            # print("Track segment max and min coordinates:", max_lat, max_lon, min_lat, min_lon)
+            # print("Distance between points, km: ", hypotenuse)
             
-            point_max_lon = point_max_lon * lon_coeff
-            point_min_lon = point_min_lon * lon_coeff
-
-            lat_diff = point_max_lat - point_min_lat
-            lon_diff = point_max_lon - point_min_lon
-
-            if lat_diff > lon_diff:
-                point_min_lon = point_min_lon - (lat_diff / 4)
-                point_max_lon = point_max_lon + (lat_diff / 4)
-            elif lon_diff > lat_diff:
-                point_min_lat = point_min_lat - (lon_diff / 4)
-                point_max_lat = point_max_lat + (lon_diff / 4)
+            bearing = calculate_bearing(max_lat, max_lon, min_lat, min_lon)
+            angle = calculate_true_angle(bearing)
             
+            # print("Bearing from max to min: ", bearing)
+            # print("True angle: ", angle)
             
+            hor_len, ver_len = calculate_rectangle(hypotenuse, angle)
+            # print("Horizontal length, vertical length:", hor_len, ver_len)
+
+            max_track_len = hor_len
+
+            if hor_len < ver_len:
+                max_track_len = ver_len
+
+            mid_lat = (max_lat + min_lat) / 2
+            mid_lon = (max_lon + min_lon) / 2
+
+            km_pixels_coeff = limit_width / max_track_len
+
             points = []
-            
-            for point in adjusted_points:
-                x = math.floor(normalize(point["longitude"], point_min_lon, point_max_lon) * limit_width) + offset_width
-                y = math.floor((1 - normalize(point["latitude"], point_min_lat, point_max_lat)) * limit_height) + offset_height
-                
-                points.append((x, y))
 
+            for point in segment.points:
+                center_distance = haversine(mid_lat, mid_lon, point.latitude, point.longitude) * km_pixels_coeff
+                center_bearing = calculate_bearing_radians(mid_lat, mid_lon, point.latitude, point.longitude) - half_pi
+
+                x = center_distance * math.cos(center_bearing) + width_center
+                y = center_distance * math.sin(center_bearing) + height_center
+
+                points.append((x, y))
+            
             # Draw the track line
             draw.line(points, fill="white", width=line_width)
 

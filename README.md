@@ -15,8 +15,8 @@ There are some possibilities to make this utility better.
 ## Coordinate Mapping
 
 Coordinate mapping to the image should take into account the latitute and its effect on proportional distance beteen
-longitudinal points. Currently this is implemented in a very approximate manner, perfect square by coordinates going up
-on latitudes does is not exactly squared, but close.
+longitudinal points. This is now implemented using distances and bearings between coordinates and offsetting the track
+to the image center. Should be just fine with any coordinate set in any part of the world.
 
 ## Other Statistics
 
